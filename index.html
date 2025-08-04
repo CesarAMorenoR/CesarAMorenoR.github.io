@@ -51,30 +51,76 @@
             display: flex;
             justify-content: center;
             margin-bottom: 30px;
-            gap: 10px;
+            gap: 15px;
+            padding: 10px;
         }
 
         .nav-btn {
-            padding: 12px 24px;
-            background: #2196F3;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #2196F3, #1976D2);
             color: white;
-            border: none;
-            border-radius: 25px;
+            border: 2px solid transparent;
+            border-radius: 30px;
             cursor: pointer;
             font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+            position: relative;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .nav-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
         }
 
         .nav-btn:hover {
-            background: #1976D2;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+            background: linear-gradient(135deg, #1976D2, #1565C0);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(33, 150, 243, 0.5);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .nav-btn:hover::before {
+            left: 100%;
+        }
+
+        .nav-btn:active {
+            transform: translateY(-1px) scale(0.98);
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.6);
         }
 
         .nav-btn.active {
-            background: #4CAF50;
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            background: linear-gradient(135deg, #4CAF50, #388E3C);
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.5);
+            border-color: rgba(255, 255, 255, 0.4);
+            position: relative;
+        }
+
+        .nav-btn.active::after {
+            content: '●';
+            position: absolute;
+            top: 50%;
+            right: 12px;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .nav-btn:focus {
+            outline: none;
+            border-color: #FFC107;
+            box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.3);
         }
 
         .scene {
@@ -100,10 +146,10 @@
 
         .scene-title {
             font-size: 2em;
-            color: #2196F3;
+            color: #00060b;
             margin-bottom: 15px;
             text-align: center;
-            border-bottom: 3px solid #4CAF50;
+            border-bottom: 3px solid #1c1a1a;
             padding-bottom: 10px;
         }
 
@@ -274,13 +320,13 @@
     <div class="container">
         <div class="header">
             <h1>Data Science Salary Trends</h1>
-            <p>An Interactive Overview of Compensation Trends in the Data Science Field</p>
+            <p>Click on each button below to explore salary data through different lenses.</p>
         </div>
 
         <div class="navigation">
             <button class="nav-btn active" onclick="showScene(1)">Salaries by Experience Level</button>
             <button class="nav-btn" onclick="showScene(2)">Salaries by Work Environment</button>
-            <button class="nav-btn" onclick="showScene(3)">Job Roles Analysis</button>
+            <button class="nav-btn" onclick="showScene(3)">Salaries by Job Title</button>
         </div>
 
         <!-- Scene 1: Experience Level over Time -->
@@ -321,7 +367,7 @@
         <!-- Scene 2: Remote Work Patterns -->
         <div id="scene2" class="scene">
             <div class="scene-content">
-                <h2 class="scene-title">Remote Work Patterns in Data Science</h2>
+                <h2 class="scene-title">Salaries and Work Environment</h2>
                 <p class="scene-description">
                     Explore how remote work adoption varies by experience level and company size across different years.
                     Each bubble represents a combination of experience level and company size, with bubble size indicating median salary and color showing experience level.
@@ -349,7 +395,7 @@
         <!-- Scene 3: Job Titles -->
         <div id="scene3" class="scene">
             <div class="scene-content">
-                <h2 class="scene-title">Job Title Analysis by Experience Level</h2>
+                <h2 class="scene-title">Salaries by Job Title</h2>
                 <p class="scene-description">
                     Analyze job titles across different dimensions: popularity, highest compensation, and entry-level opportunities.
                     Use the filters to explore trends by year and experience level.
@@ -1319,13 +1365,16 @@
         }
 
         function renderMostCommonJobTitles(data) {
-            const margin = {top: 20, right: 20, bottom: 120, left: 80};
-            const width = 450 - margin.left - margin.right;
+            const margin = {top: 20, right: 30, bottom: 120, left: 80};
+
+            // Get the container width and use most of it
+            const containerWidth = document.getElementById('visualization3-common').clientWidth || 600;
+            const width = containerWidth - margin.left - margin.right;
             const height = 350 - margin.top - margin.bottom;
 
             const svg = d3.select("#visualization3-common")
                 .append("svg")
-                .attr("width", width + margin.left + margin.right)
+                .attr("width", containerWidth)
                 .attr("height", height + margin.top + margin.bottom);
 
             const g = svg.append("g")
@@ -1344,7 +1393,7 @@
                 d => d.job_title
             );
 
-            // Get top 10 most common job titles
+            // Get top 20 most common job titles
             const topCommon = Array.from(jobData, ([title, data]) => ({
                 title: title.length > 20 ? title.substring(0, 20) + "..." : title,
                 fullTitle: title,
@@ -1352,7 +1401,7 @@
                 avgSalary: data.avgSalary,
                 experienceBreakdown: data.experienceBreakdown
             })).sort((a, b) => b.count - a.count)
-              .slice(0, 10);
+              .slice(0, 20);
 
             // Scales
             const xScale = d3.scaleBand()
@@ -1371,10 +1420,12 @@
                 .selectAll("text")
                 .attr("transform", "rotate(-45)")
                 .style("text-anchor", "end")
-                .style("font-size", "9px");
+                .style("font-size", "12px");
 
             g.append("g")
-                .call(d3.axisLeft(yScale));
+                .call(d3.axisLeft(yScale))
+                .selectAll("text")
+                .style("font-size", "12px");
 
             // Create stacked bars by experience level
             topCommon.forEach(job => {
@@ -1427,13 +1478,16 @@
         }
 
         function renderHighestPaidJobTitles(data) {
-            const margin = {top: 20, right: 20, bottom: 120, left: 80};
-            const width = 450 - margin.left - margin.right;
+            const margin = {top: 20, right: 30, bottom: 120, left: 80};
+
+            // Get the container width and use most of it
+            const containerWidth = document.getElementById('visualization3-highest').clientWidth || 600;
+            const width = containerWidth - margin.left - margin.right;
             const height = 350 - margin.top - margin.bottom;
 
             const svg = d3.select("#visualization3-highest")
                 .append("svg")
-                .attr("width", width + margin.left + margin.right)
+                .attr("width", containerWidth)
                 .attr("height", height + margin.top + margin.bottom);
 
             const g = svg.append("g")
@@ -1450,7 +1504,7 @@
                 d => d.job_title
             );
 
-            // Get top 10 highest paid job titles (with at least 3 positions)
+            // Get top 20 highest paid job titles (with at least 3 positions)
             const topPaid = Array.from(jobData, ([title, data]) => ({
                 title: title.length > 20 ? title.substring(0, 20) + "..." : title,
                 fullTitle: title,
@@ -1460,7 +1514,7 @@
                 experienceBreakdown: Object.fromEntries(data.experienceBreakdown)
             })).filter(d => d.count >= 3)
               .sort((a, b) => b.avgSalary - a.avgSalary)
-              .slice(0, 10);
+              .slice(0, 20);
 
             // Scales
             const xScale = d3.scaleBand()
@@ -1479,10 +1533,12 @@
                 .selectAll("text")
                 .attr("transform", "rotate(-45)")
                 .style("text-anchor", "end")
-                .style("font-size", "9px");
+                .style("font-size", "12px");
 
             g.append("g")
-                .call(d3.axisLeft(yScale).tickFormat(d => "$" + d3.format(",.0f")(d)));
+                .call(d3.axisLeft(yScale).tickFormat(d => "$" + d3.format(",.0f")(d)))
+                .selectAll("text")
+                .style("font-size", "12px");
 
             // Determine dominant experience level for each job
             topPaid.forEach(job => {
@@ -1549,13 +1605,16 @@
         }
 
         function renderEntryLevelOpportunities(data) {
-            const margin = {top: 20, right: 20, bottom: 120, left: 80};
-            const width = 450 - margin.left - margin.right;
+            const margin = {top: 20, right: 30, bottom: 120, left: 80};
+
+            // Get the container width and use most of it
+            const containerWidth = document.getElementById('visualization3-entry').clientWidth || 600;
+            const width = containerWidth - margin.left - margin.right;
             const height = 350 - margin.top - margin.bottom;
 
             const svg = d3.select("#visualization3-entry")
                 .append("svg")
-                .attr("width", width + margin.left + margin.right)
+                .attr("width", containerWidth)
                 .attr("height", height + margin.top + margin.bottom);
 
             const g = svg.append("g")
@@ -1573,7 +1632,7 @@
                 d => d.job_title
             );
 
-            // Get 10 lowest paid job titles (with at least 3 positions)
+            // Get 20 lowest paid job titles (with at least 3 positions)
             const lowestPaid = Array.from(jobData, ([title, data]) => ({
                 title: title.length > 20 ? title.substring(0, 20) + "..." : title,
                 fullTitle: title,
@@ -1584,7 +1643,7 @@
                 experienceBreakdown: Object.fromEntries(data.experienceBreakdown)
             })).filter(d => d.count >= 3)
               .sort((a, b) => a.avgSalary - b.avgSalary)
-              .slice(0, 10);
+              .slice(0, 20); // Changed from 10 to 20
 
             if (lowestPaid.length === 0) {
                 g.append("text")
@@ -1614,10 +1673,12 @@
                 .selectAll("text")
                 .attr("transform", "rotate(-45)")
                 .style("text-anchor", "end")
-                .style("font-size", "9px");
+                .style("font-size", "12px");
 
             g.append("g")
-                .call(d3.axisLeft(yScale).tickFormat(d => "$" + d3.format(",.0f")(d)));
+                .call(d3.axisLeft(yScale).tickFormat(d => "$" + d3.format(",.0f")(d)))
+                .selectAll("text")
+                .style("font-size", "12px");
 
             // Determine dominant experience level for each job
             lowestPaid.forEach(job => {
