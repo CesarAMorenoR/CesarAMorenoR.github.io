@@ -274,8 +274,8 @@
         </div>
 
         <div class="navigation">
-            <button class="nav-btn active" onclick="showScene(1)">Experience & Time</button>
-            <button class="nav-btn" onclick="showScene(2)">Geographic Distribution</button>
+            <button class="nav-btn active" onclick="showScene(1)">Salaries by Experience Level</button>
+            <button class="nav-btn" onclick="showScene(2)">Salaries by Work Environment</button>
             <button class="nav-btn" onclick="showScene(3)">Job Roles Analysis</button>
         </div>
 
@@ -314,28 +314,31 @@
             </div>
         </div>
 
-        <!-- Scene 2: Company Location -->
+        <!-- Scene 2: Remote Work Patterns -->
         <div id="scene2" class="scene">
             <div class="scene-content">
-                <h2 class="scene-title">Global Salary Distribution</h2>
+                <h2 class="scene-title">Remote Work Patterns in Data Science</h2>
                 <p class="scene-description">
-                    Discover salary variations across different countries and regions.
-                    See how geographic location impacts compensation in the data science field.
+                    Explore how remote work adoption varies by experience level and company size across different years.
+                    Each bubble represents a combination of experience level and company size, with bubble size indicating median salary and color showing experience level.
                 </p>
-                <div class="controls">
-                    <label for="yearFilter">Filter by Year:</label>
-                    <select id="yearFilter" onchange="updateScene2()">
-                        <option value="all">All Years</option>
-                        <option value="2025">2025</option>
-                        <option value="2024">2024</option>
-                        <option value="2023">2023</option>
-                        <option value="2022">2022</option>
-                        <option value="2021">2021</option>
-                        <option value="2020">2020</option>
-                    </select>
+                <div style="margin: 30px 0; display: flex; justify-content: center; align-items: center; gap: 15px; position: relative;">
+                    <label for="scene2YearSlider" style="font-weight: bold;">Year:</label>
+                    <div style="position: relative; width: 400px;">
+                        <input type="range" id="scene2YearSlider" min="2020" max="2025" step="1" value="2025"
+                               style="width: 100%; height: 8px; border-radius: 5px; background: #ddd; outline: none; -webkit-appearance: none; appearance: none;">
+                        <div style="position: absolute; top: 25px; width: 100%; display: flex; justify-content: space-between; font-size: 12px; color: #666;">
+                            <span>2020</span>
+                            <span>2021</span>
+                            <span>2022</span>
+                            <span>2023</span>
+                            <span>2024</span>
+                            <span>2025</span>
+                        </div>
+                    </div>
+                    <span id="scene2YearValue" style="font-weight: bold; font-size: 1.2em; color: #2196F3; min-width: 50px;">2025</span>
                 </div>
                 <div id="visualization2"></div>
-                <div class="legend" id="legend2"></div>
             </div>
         </div>
 
@@ -392,6 +395,15 @@
                 document.getElementById('scene1YearValue').textContent = year;
                 if (currentScene === 1) {
                     updateScene1WithTransitions();
+                }
+            });
+
+            // Add slider event listener for Scene 2
+            document.getElementById('scene2YearSlider').addEventListener('input', function() {
+                const year = this.value;
+                document.getElementById('scene2YearValue').textContent = year;
+                if (currentScene === 2) {
+                    updateScene2();
                 }
             });
         });
@@ -979,9 +991,9 @@
             }
         }
 
-        // Scene 2: Geographic Distribution
+        // Scene 2: Remote Work Patterns - Three separate charts
         function renderScene2() {
-            const margin = {top: 20, right: 20, bottom: 100, left: 80};
+            const margin = {top: 40, right: 20, bottom: 80, left: 80};
             const containerWidth = document.getElementById('visualization2').clientWidth;
             const width = containerWidth - margin.left - margin.right;
             const height = 400 - margin.bottom - margin.top;
@@ -994,29 +1006,12 @@
             const g = svg.append("g")
                 .attr("transform", `translate(${margin.left},${margin.top})`);
 
-            // Get selected countries from checkboxes
-            selectedCountries.clear();
-            document.querySelectorAll('#countryCheckboxes input[type="checkbox"]:checked').forEach(checkbox => {
-                selectedCountries.add(checkbox.value);
-            });
+            // Get year from slider
+            const year = +document.getElementById('scene2YearSlider').value;
+            document.getElementById('scene2YearValue').textContent = year;
 
-            // Filter data based on year and country selection
-            const yearFilter = document.getElementById('yearFilter').value;
-            let filteredData = yearFilter === 'all' ?
-                salaryData :
-                salaryData.filter(d => d.work_year == yearFilter);
-
-            // Apply country filtering
-            filteredData = filteredData.filter(d => {
-                if (selectedCountries.has(d.company_location)) {
-                    return true;
-                }
-                // Check if "Rest of World" is selected and this is a minor country
-                if (selectedCountries.has('REST_OF_WORLD') && window.minorCountries && window.minorCountries.includes(d.company_location)) {
-                    return true;
-                }
-                return false;
-            });
+            // Filter data for selected year
+            let filteredData = salaryData.filter(d => d.work_year === year);
 
             if (filteredData.length === 0) {
                 g.append("text")
@@ -1024,135 +1019,247 @@
                     .attr("y", height / 2)
                     .attr("text-anchor", "middle")
                     .style("font-size", "18px")
-                    .text("No data available for selected filters");
+                    .text(`No data available for year ${year}`);
                 return;
             }
 
-            // Aggregate by country location
-            const countryData = d3.rollup(filteredData,
-                v => ({
-                    avgSalary: d3.mean(v, d => d.salary_in_usd),
-                    count: v.length
-                }),
-                d => d.company_location
-            );
+            // Create three charts side by side
+            const chartWidth = (width - 40) / 3; // 3 charts with spacing
+            const chartHeight = height - 20;
+            const chartSpacing = 20;
 
-            // Convert to array, group minor countries, and sort
-            const processedCountries = [];
-            let restWorldData = { totalSalary: 0, totalCount: 0 };
+            const remoteTypes = [
+                { ratio: 0, name: 'On-site', color: '#FF6B6B' },
+                { ratio: 50, name: 'Hybrid', color: '#4ECDC4' },
+                { ratio: 100, name: 'Fully Remote', color: '#45B7D1' }
+            ];
 
-            countryData.forEach((data, country) => {
-                if (selectedCountries.has(country)) {
-                    processedCountries.push({
-                        country,
-                        avgSalary: data.avgSalary,
-                        count: data.count
+            remoteTypes.forEach((remoteType, chartIndex) => {
+                const chartX = chartIndex * (chartWidth + chartSpacing);
+                const chartG = g.append("g")
+                    .attr("transform", `translate(${chartX}, 0)`)
+                    .attr("class", `remote-chart-${remoteType.ratio}`);
+
+                // Filter data for this remote work type
+                const remoteFilteredData = filteredData.filter(d => d.remote_ratio === remoteType.ratio);
+
+                // Chart title
+                chartG.append("text")
+                    .attr("x", chartWidth / 2)
+                    .attr("y", -10)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "16px")
+                    .style("font-weight", "bold")
+                    .style("fill", remoteType.color)
+                    .text(remoteType.name);
+
+                if (remoteFilteredData.length === 0) {
+                    chartG.append("text")
+                        .attr("x", chartWidth / 2)
+                        .attr("y", chartHeight / 2)
+                        .attr("text-anchor", "middle")
+                        .style("font-size", "14px")
+                        .style("fill", "#666")
+                        .text("No data available");
+                    return;
+                }
+
+                // Aggregate data by experience level and company size
+                const aggregatedData = d3.rollup(remoteFilteredData,
+                    v => ({
+                        count: v.length,
+                        medianSalary: d3.median(v, d => d.salary_in_usd),
+                        avgSalary: d3.mean(v, d => d.salary_in_usd)
+                    }),
+                    d => d.experience_level,
+                    d => d.company_size
+                );
+
+                // Convert to bubble data
+                const bubbleData = [];
+                aggregatedData.forEach((companySizeData, experienceLevel) => {
+                    companySizeData.forEach((data, companySize) => {
+                        if (data.count >= 2) { // Only show combinations with at least 2 data points
+                            bubbleData.push({
+                                experienceLevel,
+                                companySize,
+                                count: data.count,
+                                medianSalary: data.medianSalary,
+                                avgSalary: data.avgSalary,
+                                remoteType: remoteType.name
+                            });
+                        }
                     });
-                } else if (selectedCountries.has('REST_OF_WORLD') && window.minorCountries && window.minorCountries.includes(country)) {
-                    restWorldData.totalSalary += data.avgSalary * data.count;
-                    restWorldData.totalCount += data.count;
+                });
+
+                if (bubbleData.length === 0) {
+                    chartG.append("text")
+                        .attr("x", chartWidth / 2)
+                        .attr("y", chartHeight / 2)
+                        .attr("text-anchor", "middle")
+                        .style("font-size", "12px")
+                        .style("fill", "#666")
+                        .text("Insufficient data");
+                    return;
+                }
+
+                // Create scales for this chart
+                const xScale = d3.scaleBand()
+                    .domain(['S', 'M', 'L'])
+                    .range([0, chartWidth])
+                    .padding(0.3);
+
+                const yScale = d3.scaleBand()
+                    .domain(['EN', 'MI', 'SE', 'EX'])
+                    .range([chartHeight - 40, 0])
+                    .padding(0.3);
+
+                // Size scale for bubbles (based on median salary)
+                const sizeScale = d3.scaleSqrt()
+                    .domain(d3.extent(bubbleData, d => d.medianSalary))
+                    .range([8, 30]);
+
+                // Add grid lines
+                chartG.selectAll(".grid-line-x")
+                    .data(['S', 'M', 'L'])
+                    .enter().append("line")
+                    .attr("class", "grid-line-x")
+                    .attr("x1", d => xScale(d) + xScale.bandwidth()/2)
+                    .attr("x2", d => xScale(d) + xScale.bandwidth()/2)
+                    .attr("y1", 0)
+                    .attr("y2", chartHeight - 40)
+                    .attr("stroke", "#e0e0e0")
+                    .attr("stroke-width", 1)
+                    .attr("stroke-dasharray", "2,2");
+
+                chartG.selectAll(".grid-line-y")
+                    .data(['EN', 'MI', 'SE', 'EX'])
+                    .enter().append("line")
+                    .attr("class", "grid-line-y")
+                    .attr("x1", 0)
+                    .attr("x2", chartWidth)
+                    .attr("y1", d => yScale(d) + yScale.bandwidth()/2)
+                    .attr("y2", d => yScale(d) + yScale.bandwidth()/2)
+                    .attr("stroke", "#e0e0e0")
+                    .attr("stroke-width", 1)
+                    .attr("stroke-dasharray", "2,2");
+
+                // Add bubbles
+                chartG.selectAll(".bubble")
+                    .data(bubbleData)
+                    .enter().append("circle")
+                    .attr("class", "bubble")
+                    .attr("cx", d => xScale(d.companySize) + xScale.bandwidth()/2)
+                    .attr("cy", d => yScale(d.experienceLevel) + yScale.bandwidth()/2)
+                    .attr("r", 0)
+                    .attr("fill", d => experienceColors[d.experienceLevel])
+                    .attr("opacity", 0.8)
+                    .attr("stroke", "#fff")
+                    .attr("stroke-width", 2)
+                    .on("mouseover", function(event, d) {
+                        d3.select(this)
+                            .attr("opacity", 1)
+                            .attr("stroke", "#000")
+                            .attr("stroke-width", 3);
+
+                        tooltip.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+                        tooltip.html(
+                            `<strong>${getExperienceName(d.experienceLevel)} - ${getCompanySizeName(d.companySize)} size company</strong><br/>` +
+                            `Work Environment: ${d.remoteType}<br/>` +
+                            `Median Salary: $${d3.format(",.0f")(d.medianSalary)}<br/>` +
+                            `Average Salary: $${d3.format(",.0f")(d.avgSalary)}<br/>` +
+                            `Number of jobs: ${d.count}`
+                        )
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function(event, d) {
+                        d3.select(this)
+                            .attr("opacity", 0.8)
+                            .attr("stroke", "#fff")
+                            .attr("stroke-width", 2);
+
+                        tooltip.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    })
+                    .transition()
+                    .duration(800)
+                    .delay((d, i) => i * 50 + chartIndex * 200)
+                    .attr("r", d => sizeScale(d.medianSalary));
+
+                // Add axes for this chart
+                chartG.append("g")
+                    .attr("transform", `translate(0,${chartHeight - 40})`)
+                    .call(d3.axisBottom(xScale).tickFormat(d => getCompanySizeName(d)))
+                    .selectAll("text")
+                    .style("font-size", "10px");
+
+                // Only add Y axis to the leftmost chart
+                if (chartIndex === 0) {
+                    chartG.append("g")
+                        .call(d3.axisLeft(yScale).tickFormat(d => getExperienceName(d)))
+                        .selectAll("text")
+                        .style("font-size", "10px");
+                }
+
+                // Add axis label for company size (only for middle chart)
+                if (chartIndex === 1) {
+                    chartG.append("text")
+                        .attr("transform", `translate(${chartWidth / 2}, ${chartHeight - 5})`)
+                        .style("text-anchor", "middle")
+                        .style("font-size", "12px")
+                        .style("font-weight", "bold")
+                        .text("Company Size");
                 }
             });
 
-            // Add "Rest of World" aggregate if it has data
-            if (restWorldData.totalCount > 0) {
-                processedCountries.push({
-                    country: 'Rest of World',
-                    avgSalary: restWorldData.totalSalary / restWorldData.totalCount,
-                    count: restWorldData.totalCount
-                });
-            }
-
-            const sortedCountries = processedCountries
-                .sort((a, b) => b.avgSalary - a.avgSalary)
-                .slice(0, 15); // Top 15
-
-            // Scales
-            const xScale = d3.scaleBand()
-                .domain(sortedCountries.map(d => d.country))
-                .range([0, width])
-                .padding(0.1);
-
-            const yScale = d3.scaleLinear()
-                .domain([0, d3.max(sortedCountries, d => d.avgSalary)])
-                .range([height, 0]);
-
-            // Add axes
-            g.append("g")
-                .attr("transform", `translate(0,${height})`)
-                .call(d3.axisBottom(xScale))
-                .selectAll("text")
-                .attr("transform", "rotate(-45)")
-                .style("text-anchor", "end")
-                .style("font-size", "11px");
-
-            g.append("g")
-                .call(d3.axisLeft(yScale).tickFormat(d => "$" + d3.format(",.0f")(d)));
-
-            // Add bars with animation
-            g.selectAll(".bar")
-                .data(sortedCountries)
-                .enter().append("rect")
-                .attr("class", "bar")
-                .attr("x", d => xScale(d.country))
-                .attr("width", xScale.bandwidth())
-                .attr("y", height)
-                .attr("height", 0)
-                .attr("fill", d => d.country === 'Rest of World' ? '#999' : regionColors(d.country))
-                .on("mouseover", function(event, d) {
-                    d3.select(this).attr("opacity", 0.8);
-                    tooltip.transition()
-                        .duration(200)
-                        .style("opacity", .9);
-                    tooltip.html(`Country: ${d.country}<br/>Avg Salary: $${d3.format(",.0f")(d.avgSalary)}<br/>Positions: ${d.count.toLocaleString()}`)
-                        .style("left", (event.pageX + 10) + "px")
-                        .style("top", (event.pageY - 28) + "px");
-                })
-                .on("mouseout", function(d) {
-                    d3.select(this).attr("opacity", 1);
-                    tooltip.transition()
-                        .duration(500)
-                        .style("opacity", 0);
-                })
-                .transition()
-                .duration(800)
-                .delay((d, i) => i * 50)
-                .attr("y", d => yScale(d.avgSalary))
-                .attr("height", d => height - yScale(d.avgSalary));
-
-            // Add axis labels
+            // Add Y axis label (only once, on the left)
             g.append("text")
                 .attr("transform", "rotate(-90)")
                 .attr("y", 0 - margin.left)
-                .attr("x", 0 - (height / 2))
+                .attr("x", 0 - (chartHeight / 2))
                 .attr("dy", "1em")
                 .style("text-anchor", "middle")
-                .style("font-size", "14px")
+                .style("font-size", "12px")
                 .style("font-weight", "bold")
-                .text("Average Salary (USD)");
+                .text("Experience Level");
 
-            g.append("text")
-                .attr("transform", `translate(${width / 2}, ${height + 80})`)
-                .style("text-anchor", "middle")
-                .style("font-size", "14px")
+            sizeLegend.append("text")
+                .attr("x", 0)
+                .attr("y", -10)
+                .style("font-size", "12px")
                 .style("font-weight", "bold")
-                .text("Company Location");
+                .text("Median Salary (Bubble Size)");
 
-            // Add annotation for highest paying country
-            if (sortedCountries.length > 0) {
-                const topCountry = sortedCountries[0];
-                g.append("text")
-                    .attr("x", xScale(topCountry.country) + xScale.bandwidth()/2)
-                    .attr("y", yScale(topCountry.avgSalary) - 10)
-                    .attr("text-anchor", "middle")
-                    .attr("class", "annotation-text")
-                    .style("opacity", 0)
-                    .text(`Highest: $${d3.format(",.0f")(topCountry.avgSalary)}`)
-                    .transition()
-                    .duration(1000)
-                    .delay(400)
-                    .style("opacity", 1);
-            }
+            const sampleSalaries = [60000, 120000, 200000];
+            const globalSizeScale = d3.scaleSqrt()
+                .domain([60000, 200000])
+                .range([8, 30]);
+
+            sampleSalaries.forEach((salary, i) => {
+                const legendItem = sizeLegend.append("g")
+                    .attr("transform", `translate(0, ${i * 25 + 5})`);
+
+                legendItem.append("circle")
+                    .attr("cx", globalSizeScale(salary))
+                    .attr("cy", 0)
+                    .attr("r", globalSizeScale(salary))
+                    .attr("fill", "none")
+                    .attr("stroke", "#666")
+                    .attr("stroke-width", 1);
+
+                legendItem.append("text")
+                    .attr("x", globalSizeScale(200000) + 15)
+                    .attr("y", 4)
+                    .style("font-size", "10px")
+                    .text("$" + d3.format(",.0f")(salary));
+            });
+
+            // Create experience level legend
+            createExperienceLegend("legend2");
         }
 
         // Scene 3: Job Titles
@@ -1280,6 +1387,15 @@
                 'EX': 'Executive Level'
             };
             return names[code] || code;
+        }
+
+        function getCompanySizeName(size) {
+            const sizes = {
+                'S': 'Small',
+                'M': 'Medium',
+                'L': 'Large'
+            };
+            return sizes[size] || size;
         }
 
         function createExperienceLegend(containerId) {
