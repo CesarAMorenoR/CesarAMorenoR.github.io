@@ -430,6 +430,7 @@
                         </div>
                     </div>
                 </div>
+                <div class="legend" id="legend3"></div>
                 <div style="display: flex; flex-direction: column; gap: 40px; margin-bottom: 30px; align-items: center;">
                     <div style="width: 100%; max-width: 600px;">
                         <h3 style="text-align: center; color: #2196F3; margin-bottom: 15px;">Most Common Job Titles</h3>
@@ -444,7 +445,6 @@
                         <div id="visualization3-entry" style="display: flex; justify-content: center;"></div>
                     </div>
                 </div>
-                <div class="legend" id="legend3"></div>
             </div>
         </div>
     </div>
@@ -727,8 +727,8 @@
 
             const statistics = ['min', 'max', 'median', 'average'];
             const statLabels = {
-                'min': 'Minimum Salaries',
-                'max': 'Maximum Salaries',
+                'min': 'Lowest Salaries',
+                'max': 'Highest Salaries',
                 'median': 'Median Salaries',
                 'average': 'Average Salaries'
             };
@@ -1085,7 +1085,7 @@
 
         // Scene 2: Remote Work Patterns - Three separate charts
         function renderScene2() {
-            const margin = {top: 40, right: 20, bottom: 80, left: 80};
+            const margin = {top: 40, right: 20, bottom: 40, left: 80}; // Reduced bottom margin from 80 to 40
             const containerWidth = document.getElementById('visualization2').clientWidth;
             const width = containerWidth - margin.left - margin.right;
             const height = 400 - margin.bottom - margin.top;
@@ -1117,7 +1117,7 @@
 
             // Create three charts side by side
             const chartWidth = (width - 40) / 3; // 3 charts with spacing
-            const chartHeight = height - 20;
+            const chartHeight = height - 10; // Reduced from height - 20
             const chartSpacing = 20;
 
             const remoteTypes = [
